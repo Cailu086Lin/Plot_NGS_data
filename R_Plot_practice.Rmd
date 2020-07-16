@@ -1,0 +1,927 @@
+---
+title: "R_club_20200320"
+author: "Cailu lin"
+date: "3/20/2020"
+output:
+  pdf_document: default
+  html_document: default
+---
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r load packages, echo=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+options(tinytex.verbose = TRUE)
+
+# Clear existing data and graphics
+rm(list = ls())
+graphics.off()
+# Load  library
+pacman::p_load(data.table, tidyverse, readr, zipcode, maps, viridis, ggthemes, albersusa, devtools, sf, raster, sp, rgeos, spData, maptools,ggplot2, ggalt, ggthemes, viridis,scales, spDataLarge, mapview,tmap,leaflet,psych)
+```
+
+# Fig 1
+```{r Fig1, echo=FALSE}
+dat<-fread("C:/Users/Ke.Evan/Dropbox/REDCap/4.Others/NGS - map examples/NGS_use_me.csv", select=c("AGE", "SEX"))%>%
+  filter(AGE>=10 &SEX !=0)%>%
+  mutate(SEX=recode(SEX, "1"="MALES","2"="FEMALES"))##data import and clean
+
+dat$AGE2<-cut(as.numeric(dat$AGE), c(10,20,30,40,50,60,70,80,90,100)) ##age format
+
+##computation
+dat2<-dat%>%
+  drop_na()%>%
+  group_by(AGE2, SEX)%>%
+  summarise(N=n())
+
+  
+dat2$SEX=factor(dat2$SEX, levels = c("MALES", "FEMALES"))
+dat2$N2<-as.numeric(dat2$N)/1000
+
+##plot
+p<-ggplot(dat2, aes(AGE2, N2, fill=SEX))+
+  geom_bar(stat="identity",color="black",position=position_dodge())+
+  ylab("FREQUENCY, (X1000)")+
+  scale_x_discrete(name ="AGE IN DECADES",  labels = c("TEENS", "20'S","30'S","40'S","50'S", "60'S","70'S","80'S","90'S"))+
+  scale_fill_manual(values=c('black', 'white'),breaks=c("MALES", "FEMALES"), labels = c("MALES", "FEMALES"), name="")+
+  theme_classic() 
+
+p
+
+##save plot
+postscript(colormodel="cmyk")
+#ggsave(filename ='Figure_rclub03202020.tiff',p,  width = 20, height =15, units ="cm",dpi = 1200, device='tiff', limitsize = TRUE, compression = "lzw")
+dev.off()
+
+```
+
+# Fig 2
+```{r Fig2, echo=FALSE}
+dat<-fread("C:/Users/Ke.Evan/Dropbox/REDCap/4.Others/NGS - map examples/NGS_use_me.csv", select=c("AGE", "SEX", "SELF_RATE_SMELL"))%>%
+  filter(AGE>=10 &SEX !=0)
+dat$AGE2<-cut(as.numeric(dat$AGE), c(10,20,30,40,50,60,70,80,90,100))
+
+#computation
+dat2<-dat%>%
+  drop_na()%>%
+  group_by(AGE2, SEX)%>%
+  summarise(mean=mean(SELF_RATE_SMELL))
+
+dat2<-data.frame(dat2)%>%
+  mutate(SEX=recode(SEX, "1"="MALES","2"="FEMALES"))
+
+
+p<-ggplot(dat2, aes(AGE2, mean, group=SEX))+
+  geom_point(aes(shape=SEX),color="black", size =4)+geom_line()+
+  ylab("SELF_RATING")+scale_x_discrete(name ="AGE IN DECADES",labels = c("TEENS", "20'S","30'S","40'S","50'S", "60'S","70'S","80'S","90'S"))+
+  scale_fill_manual(values=c('black', 'white'),breaks=c("1", "2"), labels = c("MALES", "FEMALES"), name="")+
+  theme_classic()+
+  scale_shape_manual(values=c(1, 15))+
+  theme(legend.title = element_blank(), legend.position = c(0.15, 0.2))
+
+p
+
+##save plot
+postscript(colormodel="cmyk")
+#ggsave(filename ='Figure_2_NGS.tif',p,  width = 20, height =15, units ="cm",dpi = 1200, device='tiff', limitsize = TRUE, compression = "lzw")
+dev.off()
+```
+
+# Fig 3
+#Did you smell something? (Androstenone);Did you smell something? (Amyl acetate);Did you smell something? (Galaxolide);Did you smell something?(Eugenol);Did you smell something? (Mercaptans);Did you smell something?(Rose);1=Yes2=No
+
+```{r Fig3, echo=FALSE}
+dat<-fread("C:/Users/Ke.Evan/Dropbox/REDCap/4.Others/NGS - map examples/NGS_use_me.csv", select=c("AGE", "SEX", "AND_SMELL","AMY_SMELL","GALAX_SMELL", "EUG_SMELL","MERCAP_SMELL","ROSE_SMELL"))%>%
+  filter(AGE>=10 &SEX !=0)
+
+dat$AGE2<-cut(as.numeric(dat$AGE), c(10,20,30,40,50,60,70,80,90,100))
+
+#computation
+d1<-dat%>%
+    drop_na()%>%
+    group_by(AGE2, SEX, AND_SMELL)%>%
+    summarise(value=n())%>%
+    filter(AND_SMELL !="0")%>%
+    group_by(AGE2, SEX)%>%
+    mutate(value=value/sum(value))
+colnames(d1)[3]<-"key"
+d1$Key2<-"AND_SMELL"
+  
+d2<-dat%>%
+    drop_na()%>%
+    group_by(AGE2, SEX, AMY_SMELL)%>%
+    summarise(value=n())%>%
+    filter(AMY_SMELL !="0")%>%
+    group_by(AGE2, SEX)%>%
+    mutate(value=value/sum(value))
+colnames(d2)[3]<-"key"
+d2$Key2<-"AMY_SMELL"
+
+d3<-dat%>%
+    drop_na()%>%
+    group_by(AGE2, SEX, GALAX_SMELL)%>%
+    summarise(value=n())%>%
+    filter(GALAX_SMELL !="0")%>%
+    group_by(AGE2, SEX)%>%
+    mutate(value=value/sum(value))
+colnames(d3)[3]<-"key"
+d3$Key2<-"GALAX_SMELL"
+    
+d4<-dat%>%
+    drop_na()%>%
+    group_by(AGE2, SEX, EUG_SMELL)%>%
+    summarise(value=n())%>%
+    filter(EUG_SMELL !="0")%>%
+    group_by(AGE2, SEX)%>%
+    mutate(value=value/sum(value))
+colnames(d4)[3]<-"key"
+d4$Key2<-"EUG_SMELL"
+    
+d5<-dat%>%
+    drop_na()%>%
+    group_by(AGE2, SEX, MERCAP_SMELL)%>%
+    summarise(value=n())%>%
+    filter(MERCAP_SMELL !="0")%>%
+    group_by(AGE2, SEX)%>%
+    mutate(value=value/sum(value))
+colnames(d5)[3]<-"key"
+d5$Key2<-"MERCAP_SMELL"
+
+d6<-dat%>%
+    drop_na()%>%
+    group_by(AGE2, SEX, ROSE_SMELL)%>%
+    summarise(value=n())%>%
+    filter(ROSE_SMELL !="0")%>%
+    group_by(AGE2, SEX)%>%
+    mutate(value=value/sum(value))
+colnames(d6)[3]<-"key"
+d6$Key2<-"ROSE_SMELL"
+  
+df<-bind_rows(d1,d2,d3,d4,d5,d6)%>%
+  filter(key=="1")
+
+df$SEX<-as.character(df$SEX)
+
+p<-ggplot(df, aes(AGE2, value*100, group=SEX))+
+  geom_point(aes(shape=SEX),color="black", size =4)+
+  geom_line(linetype=1)+ facet_wrap(~Key2, ncol=2)+
+  ylab("PERCENT OF SAMPLE DETECTING AN ODOR")+
+  scale_x_discrete(name ="AGE IN DECADES",  labels = c("TEENS", "20'S","30'S","40'S","50'S", "60'S","70'S","80'S","90'S"))+
+  theme_classic()+ scale_shape_manual(name="",values=c(1, 15), breaks=c("1", "2"), labels = c("MALES", "FEMALES"))+
+  theme(legend.title = element_blank(), legend.position = c(0.1, 0.1))+
+  theme(strip.background=element_blank())
+
+p
+
+##save plot
+postscript(colormodel="cmyk")
+#ggsave(filename ='Figure_3_NGS.tif',p,  width = 20, height =15, units ="cm",dpi = 1200, device='tiff', limitsize = TRUE, compression = "lzw")
+dev.off()
+
+```
+
+
+# Fig 4
+```{r Fig4, echo=FALSE}
+dat<-fread("C:/Users/Ke.Evan/Dropbox/REDCap/4.Others/NGS - map examples/NGS_use_me.csv", select=c("AGE", "SEX", "totcorr"))%>%
+  filter(AGE>=10 & SEX !=0 & totcorr>0 & totcorr<7)%>%
+  mutate(SEX=recode(SEX, "1"="MALES","2"="FEMALES"))  # data import and clean
+
+
+dat$AGE2<-cut(as.numeric(dat$AGE), c(10,20,30,40,50,60,70,80,90,100)) #"age" format
+
+
+#compution mean
+dat2<-dat%>%
+  drop_na()%>%
+  group_by(AGE2, SEX)%>%
+  summarise(mean=mean(totcorr))
+
+
+#plot
+p<-ggplot(dat2, aes(AGE2, mean, group=SEX))+
+  geom_point(aes(shape=SEX),color="black", size =4)+
+  geom_line(aes(linetype=SEX))+
+  scale_x_discrete(name ="AGE IN DECADES",  labels = c("TEENS", "20'S","30'S","40'S","50'S", "60'S","70'S","80'S","90'S"))+
+  scale_fill_manual(values=c('black', 'white'),breaks=c("1", "2"), labels = c("MALES", "FEMALES"), name="")+
+  theme_classic()+
+  theme(legend.title = element_blank(), legend.position = c(0.2, 0.25))+
+  scale_shape_manual(values=c(1, 15))+
+  scale_linetype_manual(values=c(1, 1))+
+  scale_y_continuous(name="NUMBER CORRECT",breaks=c(1.0,2.0,3.0,4.0), labels=c("1.0","2.0","3.0","4.0"), limits=c(1,4))
+
+p
+
+##save plot
+#postscript(colormodel="cmyk")
+#ggsave(filename ='Figure_4_NGS.tif',p,  width = 10, height =7, units ="cm",dpi = 1200, device='tiff', limitsize = TRUE, compression = "lzw")
+#dev.off()
+
+
+```
+
+# Fig 5, #0=No response	1=Correct	2=Incorrect
+```{r Fig5, echo=FALSE}
+dat<-fread("C:/Users/Ke.Evan/Dropbox/REDCap/4.Others/NGS - map examples/NGS_use_me.csv", select=c("AGE", "SEX", "corr1","corr2","corr3", "corr4","corr5","corr6"))%>%
+  filter(AGE>=10 &SEX !=0)
+
+dat$AGE2<-cut(as.numeric(dat$AGE), c(10,20,30,40,50,60,70,80,90,100))
+
+d1<-dat%>%
+    drop_na()%>%
+    group_by(AGE2, SEX, corr1)%>%
+    summarise(value=n())%>%
+    filter(corr1 !="0")%>%
+    group_by(AGE2, SEX)%>%
+    mutate(value=value/sum(value))
+colnames(d1)[3]<-"key"
+d1$Key2<-"Androstenone"
+  
+d2<-dat%>%
+    drop_na()%>%
+    group_by(AGE2, SEX, corr2)%>%
+    summarise(value=n())%>%
+    filter(corr2 !="0")%>%
+    group_by(AGE2, SEX)%>%
+    mutate(value=value/sum(value))
+colnames(d2)[3]<-"key"
+d2$Key2<-"Amyl acetate"
+
+d3<-dat%>%
+    drop_na()%>%
+    group_by(AGE2, SEX, corr3)%>%
+    summarise(value=n())%>%
+    filter(corr3 !="0")%>%
+    group_by(AGE2, SEX)%>%
+    mutate(value=value/sum(value))
+colnames(d3)[3]<-"key"
+d3$Key2<-"Galaxolide"
+    
+d4<-dat%>%
+    drop_na()%>%
+    group_by(AGE2, SEX, corr4)%>%
+    summarise(value=n())%>%
+    filter(corr4 !="0")%>%
+    group_by(AGE2, SEX)%>%
+    mutate(value=value/sum(value))
+colnames(d4)[3]<-"key"
+d4$Key2<-"Eugenol"
+    
+d5<-dat%>%
+    drop_na()%>%
+    group_by(AGE2, SEX, corr5)%>%
+    summarise(value=n())%>%
+    filter(corr5 !="0")%>%
+    group_by(AGE2, SEX)%>%
+    mutate(value=value/sum(value))
+colnames(d5)[3]<-"key"
+d5$Key2<-"Mercaptans"
+
+d6<-dat%>%
+    drop_na()%>%
+    group_by(AGE2, SEX, corr6)%>%
+    summarise(value=n())%>%
+    filter(corr6 !="0")%>%
+    group_by(AGE2, SEX)%>%
+    mutate(value=value/sum(value))
+colnames(d6)[3]<-"key"
+d6$Key2<-"ROSE"
+  
+df<-bind_rows(d1,d2,d3,d4,d5,d6)%>%
+  filter(key=="1")
+
+df$SEX<-as.character(df$SEX)
+p<-ggplot(df, aes(AGE2, value*100, group=SEX))+
+  geom_point(aes(shape=SEX),color="black", size =4)+geom_line(linetype=1)+
+  facet_wrap(~Key2, ncol=2)+
+  ylab("PERCENT CORRECTLY IDENTIFYING ODOR")+
+  scale_x_discrete(name ="AGE IN DECADES",  labels = c("TEENS", "20'S","30'S","40'S","50'S", "60'S","70'S","80'S","90'S"))+
+  theme_classic()+
+  scale_shape_manual(name="",values=c(1, 15), breaks=c("1", "2"), labels = c("MALES", "FEMALES"))+
+  theme(legend.title = element_blank(), legend.position = c(0.1, 0.1))+
+  theme(strip.background=element_blank())
+
+p
+##save plot
+postscript(colormodel="cmyk")
+#ggsave(filename ='Figure_5_NGS.tif',p,  width = 20, height =15, units ="cm",dpi = 1200, device='tiff', limitsize = TRUE, compression = "lzw")
+dev.off()
+
+```
+
+
+# Fig 6
+#How intense is the odor? (Androstenone);How intense is the odor? (Amyl acetate);How intense is the odor? (Galaxolide);How intense is the odor?(Eugenol);How intense is the odor? (Mercaptans);How intense is the odor?(Rose)
+
+```{r Fig6, echo=FALSE}
+dat<-fread("C:/Users/Ke.Evan/Dropbox/REDCap/4.Others/NGS - map examples/NGS_use_me.csv", select=c("SEX", "AND_INT","AA_INT","GAL_INT","EUG_INT","MER_INT","ROSE_INT"))%>%
+  filter(SEX !=0 & AND_INT !=0 &AA_INT !=0 &GAL_INT !=0 &EUG_INT !=0 &MER_INT !=0 & ROSE_INT !=0 )%>%
+  mutate(SEX=recode(SEX, "1"="MALES","2"="FEMALES"))  # data import and clean
+
+#compution mean
+dat2<-dat%>%
+  drop_na()%>%
+  group_by(SEX)%>%
+  summarise(AND_INT=mean(AND_INT), AA_INT=mean(AA_INT),GAL_INT=mean(GAL_INT),EUG_INT=mean(EUG_INT),MER_INT=mean(MER_INT),ROSE_INT=mean(ROSE_INT))%>%
+  gather(key, value, -SEX)
+
+dat2$key<-factor(dat2$key, levels=c("AND_INT", "AA_INT", "GAL_INT", "EUG_INT", "MER_INT", "ROSE_INT"))
+
+#plot
+p<-ggplot(dat2, aes(key, value, fill=SEX))+
+  geom_bar(stat="identity",color="black",position=position_dodge())+
+  ylab("INTENSITY RATING)")+
+  scale_x_discrete(name ="",  labels = c("Androstenone", "Amyl acetate","Galaxolide","Eugenol","Mercaptans", "ROSE"))+
+  theme_classic()+
+  theme(legend.position = c(0.1,0.95), axis.text.x=element_text(angle=0,  hjust = 0.5, vjust=1), axis.ticks.x=element_blank())+
+  scale_fill_manual(values=c('black', 'white'), name="")
+
+p
+
+##save plot
+postscript(colormodel="cmyk")
+#ggsave(filename ='Figure_6_NGS.tif',p,  width = 15, height =6, units ="cm",dpi = 1200, device='tiff', limitsize = TRUE, compression = "lzw")
+dev.off()
+```
+
+# Fig 7
+```{r Fig7, echo=FALSE}
+dat<-fread("C:/Users/Ke.Evan/Dropbox/REDCap/4.Others/NGS - map examples/NGS_use_me.csv", select=c("AGE", "SEX", "AND_INT","AA_INT","GAL_INT","EUG_INT","MER_INT","ROSE_INT"))%>%
+  filter(AGE >=10 & SEX !=0 & AND_INT !=0 &AA_INT !=0 &GAL_INT !=0 &EUG_INT !=0 &MER_INT !=0 & ROSE_INT !=0 )%>%
+  mutate(SEX=recode(SEX, "1"="MALES","2"="FEMALES"))# data import and clean
+
+
+dat$AGE2<-cut(as.numeric(dat$AGE), c(10,20,30,40,50,60,70,80,90,100)) #age format
+
+
+#compution mean
+dat2<-dat%>%
+  gather(key, value, -AGE, -AGE2, -SEX)%>%
+  drop_na()%>%
+  group_by(AGE2, SEX)%>%
+  summarise(mean=mean(value))
+
+
+#plot
+p<-ggplot(dat2, aes(AGE2, mean, group=SEX))+
+  geom_point(aes(shape=SEX),color="black", size =4)+
+  geom_line(aes(linetype=SEX))+
+  scale_x_discrete(name ="AGE IN DECADES",  labels = c("TEENS", "20'S","30'S","40'S","50'S", "60'S","70'S","80'S","90'S"))+
+  scale_fill_manual(values=c('black', 'white'),breaks=c("MALES", "FEMALES"), labels = c("MALES", "FEMALES"), name="")+
+  theme_classic()+
+  theme(legend.title = element_blank(), legend.position = c(0.2, 0.25))+
+  scale_shape_manual(values=c(1, 15))+
+  scale_linetype_manual(values=c(1, 2))+
+  scale_y_continuous(name="INTENSITY RATING",breaks=c(3.0,3.2,3.4,3.6, 3.8, 4.0), labels=c("3.0","3.20","3.4","3.6", "3.8", "4.0"), limits=c(3,4))
+
+p
+
+##save plot
+postscript(colormodel="cmyk")
+#ggsave(filename ='Figure_7_NGS.tif',p,  width = 15, height =6, units ="cm",dpi = 1200, device='tiff', limitsize = TRUE, compression = "lzw")
+dev.off()
+```
+
+# Fig 8
+```{r Fig8, echo=FALSE}
+dat<-fread("C:/Users/Ke.Evan/Dropbox/REDCap/4.Others/NGS - map examples/NGS_use_me.csv", select=c("AGE", "SEX", "AND_INT","AA_INT","GAL_INT","EUG_INT","MER_INT","ROSE_INT"))%>%
+  filter(AGE >=10 & SEX !=0 & AND_INT !=0 &AA_INT !=0 &GAL_INT !=0 &EUG_INT !=0 &MER_INT !=0 & ROSE_INT !=0 )%>%
+  mutate(SEX=recode(SEX, "1"="MALES","2"="FEMALES"))# data import and clean
+
+
+dat$AGE2<-cut(as.numeric(dat$AGE), c(10,20,30,40,50,60,70,80,90,100)) #age format
+
+
+#compution mean
+dat2<-dat%>%
+  drop_na()%>%
+  group_by(AGE2, SEX)%>%
+ summarise(AND_INT=mean(AND_INT), AA_INT=mean(AA_INT),GAL_INT=mean(GAL_INT),EUG_INT=mean(EUG_INT),MER_INT=mean(MER_INT),ROSE_INT=mean(ROSE_INT))%>%
+  gather(key, value, -AGE2, -SEX)
+
+#plot
+p<-ggplot(dat2, aes(AGE2, value, group=SEX))+
+  geom_point(aes(shape=SEX),color="black", size =4)+
+  geom_line()+
+  facet_wrap(~key, ncol=2)+
+  ylab("INTENSITY RATING")+
+  scale_x_discrete(name ="AGE IN DECADES",  labels = c("TEENS", "20'S","30'S","40'S","50'S", "60'S","70'S","80'S","90'S"))+
+  theme_classic()+
+  scale_shape_manual(name="",values=c(1, 15), breaks=c("MALES", "FEMALES"), labels = c("MALES", "FEMALES"))+
+  theme(legend.title = element_blank(), legend.position = c(0.1, 0.1))+
+  theme(strip.background=element_blank())
+p
+##save plot
+postscript(colormodel="cmyk")
+#ggsave(filename ='Figure_8_NGS.tif',p,  width = 20, height =15, units ="cm",dpi = 1200, device='tiff', limitsize = TRUE, compression = "lzw")
+dev.off()
+```
+ 
+ 
+# Fig 9 SD==>INT vs PLEAS.
+#AND_QUAL	How would you rate the quality of this odor? (Androstenone);AA_QUAL	How would you rate the quality of this odor? (Amyl acetate);GAL_QUAL	How would you rate the quality of this odor? (Galaxolide);EUG_QUAL	How would you rate the quality of this odor? (Eugenol);MERCAP_QUAL	How would you rate the quality of this odor? (Mercaptans);ROSE_QUAL	How would you rate the quality of this odor?(Rose)
+
+```{r Fig9, echo=FALSE}
+dat<-fread("C:/Users/Ke.Evan/Dropbox/REDCap/4.Others/NGS - map examples/NGS_use_me.csv", select=c("AGE", "AND_QUAL","AA_QUAL", "GAL_QUAL", "EUG_QUAL", "AND_INT", "MERCAP_QUAL","ROSE_QUAL","AA_INT","GAL_INT", "EUG_INT","MER_INT","ROSE_INT"))%>%
+  filter(AGE >=10)
+
+
+dat$AGE2<-cut(as.numeric(dat$AGE), c(10,20,30,40,50,60,70,80,90,100)) #age format
+
+
+#compution SD
+d1<-dat%>% 
+  select(AND_QUAL, AA_QUAL,GAL_QUAL, EUG_QUAL,MERCAP_QUAL,ROSE_QUAL, AGE2)%>%
+  gather(key, QUAL, -AGE2)%>%
+  filter(QUAL !=0)%>%
+  drop_na()%>%
+  group_by(key, AGE2)%>%
+  summarise(SD=sd(QUAL))
+d1$key<-ifelse(d1$key=="AND_QUAL", "Androstenone",
+               ifelse(d1$key=="AA_QUAL", "Amyl acetate",
+                      ifelse(d1$key=="GAL_QUAL","Galaxolide",
+                             ifelse(d1$key=="EUG_QUAL", "Eugenol",
+                                    ifelse(d1$key=="MERCAP_QUAL", "Mercaptans", "Rose")))))
+d1$key2<-"PLEASANTNESS"
+
+d2<-dat%>%
+  select(AND_INT, AA_INT,GAL_INT, EUG_INT,MER_INT,ROSE_INT, AGE2)%>%
+  gather(key, INT, -AGE2)%>%
+  filter(INT !=0)%>%
+  drop_na()%>%
+  group_by(key, AGE2)%>%
+  summarise(SD=sd(INT))
+d2$key<-ifelse(d2$key=="AND_INT", "Androstenone",
+               ifelse(d2$key=="AA_INT", "Amyl acetate",
+                      ifelse(d2$key=="GAL_INT","Galaxolide",
+                             ifelse(d2$key=="EUG_INT", "Eugenol",
+                                    ifelse(d2$key=="MER_INT", "Mercaptans", "Rose")))))
+d2$key2<-"INTENSITY"
+
+
+dat2<-bind_rows(d1, d2)
+ 
+#plot
+p<-ggplot(dat2, aes(AGE2, SD, group=key2))+
+  geom_point(aes(shape=key2),color="black", size =4)+
+  geom_line()+
+  facet_wrap(~key, ncol=2)+
+  ylab("STANDARD DEVIATION")+
+  scale_x_discrete(name ="AGE IN DECADES",  labels = c("TEENS", "20'S","30'S","40'S","50'S", "60'S","70'S","80'S","90'S"))+
+  theme_classic()+
+  scale_shape_manual(name="",values=c(1, 15))+
+  theme(legend.title = element_blank(), legend.position = c(0.62, 0.2))+
+  theme(strip.background=element_blank())
+p
+##save plot
+postscript(colormodel="cmyk")
+#ggsave(filename ='Figure_9_NGS.tif',p,  width = 20, height =15, units ="cm",dpi = 1200, device='tiff', limitsize = TRUE, compression = "lzw")
+dev.off()
+```
+
+# Fig 10 the coefficient of variation (100 times the ratio between the standard deviation and the mean)
+```{r Fig10, echo=FALSE}
+dat<-fread("C:/Users/Ke.Evan/Dropbox/REDCap/4.Others/NGS - map examples/NGS_use_me.csv", select=c("AGE","AND_INT", "AA_INT","GAL_INT", "EUG_INT","MER_INT","ROSE_INT"))%>%
+  filter(AGE >=10)
+
+
+dat$AGE2<-cut(as.numeric(dat$AGE), c(10,20,30,40,50,60,70,80,90,100)) #age format
+
+
+#computation
+dat2<-dat%>%
+  gather(key, INT, -AGE, -AGE2)%>%
+  filter(INT !=0)%>%
+  drop_na()%>%
+  group_by(key, AGE2)%>%
+  summarise(COEF=100*(sd(INT)/mean(INT)))
+            
+dat2$key<-ifelse(dat2$key=="AND_INT", "Androstenone",
+               ifelse(dat2$key=="AA_INT", "Amyl acetate",
+                      ifelse(dat2$key=="GAL_INT","Galaxolide",
+                             ifelse(dat2$key=="EUG_INT", "Eugenol",
+                                    ifelse(dat2$key=="MER_INT", "Mercaptans", "Rose")))))
+
+ 
+#plot
+p<-ggplot(dat2, aes(AGE2, COEF, group= key))+
+  geom_point(aes(shape= key),color="black", size =4)+
+  geom_line(aes(linetype= key))+
+  scale_x_discrete(name ="AGE IN DECADES",  labels = c("TEENS", "20'S","30'S","40'S","50'S", "60'S","70'S","80'S","90'S"))+
+  scale_fill_manual(breaks=c("Androstenone",  "Amyl acetate","Galaxolide","Eugenol", "Mercaptans", "Rose"), labels = c("Androstenone",  "Amyl acetate","Galaxolide","Eugenol", "Mercaptans", "Rose"), name="")+
+  theme_classic()+
+  theme(legend.title = element_blank(), legend.position = "top")+
+  scale_y_continuous(name="COEFICIENT OF VARIANCE",breaks=c(0,10,20,30,40,50,60,70,80), labels=c("0","10","20","30","40","50","60","70","80"), limits=c(0,80))+
+  guides(shape = guide_legend(nrow = 2))
+
+p
+
+##save plot
+postscript(colormodel="cmyk")
+#ggsave(filename ='Figure_10_NGS.tif',p,  width = 15, height =12, units ="cm",dpi = 1200, device='tiff', limitsize = TRUE, compression = "lzw")
+dev.off()
+```
+
+# Fig 11, Pearson product-moment correlation coefficient
+```{r Fig11, echo=FALSE}
+dat<-fread("C:/Users/Ke.Evan/Dropbox/REDCap/4.Others/NGS - map examples/NGS_use_me.csv", select=c("AGE","AND_INT", "AA_INT","GAL_INT", "EUG_INT","MER_INT","ROSE_INT"))%>%
+  filter(AGE >=10)
+
+
+dat$AGE2<-cut(as.numeric(dat$AGE), c(10,20,30,40,50,60,70,80,90,100)) #age format
+
+age<-c("(10,20]","(20,30]","(30,40]","(40,50]","(50,60]","(60,70]","(70,80]","(80,90]","(90,100]")
+name<-c("AND_INT","AA_INT","GAL_INT","EUG_INT","MER_INT","ROSE_INT")
+
+#computation
+dat2<-data.frame(AGE2=NA, Key=NA, Key2=NA, cor=NA)
+dat3<-data.frame()
+for (ag in age){
+  for (nam in name){
+     for (oth in (name[!name%in%nam])){
+        dat2["AGE2"]<-ag
+        dat2$Key<-nam
+        df<-filter(dat,AGE2==ag)
+        dat2$Key2<-oth
+        dat2$cor<-cor(df[,colnames(df)%in%nam],df[,colnames(df)%in%oth], method="pearson")[1]
+        dat3<-bind_rows(dat3, dat2)
+     }
+  }
+}
+
+dat3$Key<-ifelse(dat3$Key=="AND_INT", "Androstenone",
+               ifelse(dat3$Key=="AA_INT", "Amyl acetate",
+                      ifelse(dat3$Key=="GAL_INT","Galaxolide",
+                             ifelse(dat3$Key=="EUG_INT", "Eugenol",
+                                    ifelse(dat3$Key=="MER_INT", "Mercaptans", "Rose")))))
+
+dat3$Key2<-ifelse(dat3$Key2=="AND_INT", "Androstenone",
+               ifelse(dat3$Key2=="AA_INT", "Amyl acetate",
+                      ifelse(dat3$Key2=="GAL_INT","Galaxolide",
+                             ifelse(dat3$Key2=="EUG_INT", "Eugenol",
+                                    ifelse(dat3$Key2=="MER_INT", "Mercaptans", "Rose")))))
+
+
+#plot
+p<-ggplot(dat3, aes(AGE2, cor, group= Key2))+
+  geom_point(aes(shape= Key2),color="black", size =4)+
+  geom_line(aes(linetype= Key2))+
+  facet_wrap(~Key, ncol=2)+
+  scale_x_discrete(name ="AGE IN DECADES",  labels = c("TEENS", "20'S","30'S","40'S","50'S", "60'S","70'S","80'S","90'S"))+
+  scale_fill_manual(breaks=c("Androstenone",  "Amyl acetate","Galaxolide","Eugenol", "Mercaptans", "Rose"), labels = c("Androstenone",  "Amyl acetate","Galaxolide","Eugenol", "Mercaptans", "Rose"), name="")+
+  theme_classic()+
+  theme(legend.title = element_blank(), legend.position = "top", strip.background=element_blank())+
+  scale_y_continuous(name="PEARSON PRODUCT-MONENT CORRELATION COEFFICIENT" ,breaks=c(-0.2,0,0.2,0.4,0.6), labels=c("-0.2","0.0","0.2","0.4","0.6"), limits=c(-0.2,0.7))+
+  guides(shape = guide_legend(nrow = 1))
+
+p
+
+##save plot
+postscript(colormodel="cmyk")
+#ggsave(filename ='Figure_11_NGS.tif',p,  width = 20, height =15, units ="cm",dpi = 1200, device='tiff', limitsize = TRUE, compression = "lzw")
+dev.off()  
+```
+
+# Fig 12
+#How would you rate the quality of this odor? (Androstenone);How would you rate the quality of this odor? (Amyl acetate);How would you rate the quality of this odor? (Galaxolide);How would you rate the quality of this odor? (Eugenol);How would you rate the quality of this odor? (Mercaptans);How would you rate the quality of this odor? (Rose);The mean odor pleasantness ratings plotted as a function of age, with data for men and women plotted separately. Subjects were asked to rate odor pleasantness on a 5-point scale (I: unpleasant; 5: pleasant). Samples where no odor was detected are not included.Age was collapsed by decade before the descriptive statistics were generated.
+```{r Fig12, echo=FALSE}
+dat<-fread("C:/Users/Ke.Evan/Dropbox/REDCap/4.Others/NGS - map examples/NGS_use_me.csv", select=c("AGE","SEX", "AND_QUAL","AA_QUAL", "GAL_QUAL", "EUG_QUAL", "MERCAP_QUAL","ROSE_QUAL"))%>%
+  filter(AGE >=10 &SEX !=0)
+
+
+dat$AGE2<-cut(as.numeric(dat$AGE), c(10,20,30,40,50,60,70,80,90,100)) #age format
+
+#compution mean
+dat2<-dat%>%
+  drop_na()%>%
+  group_by(AGE2, SEX)%>%
+ summarise(Androstenone=mean(AND_QUAL), 'Amyl acetate'=mean(AA_QUAL),Galaxolide=mean(GAL_QUAL),Eugenol=mean(EUG_QUAL),Mercaptans=mean(MERCAP_QUAL),Rose=mean(ROSE_QUAL))%>%
+  gather(key, value, -AGE2, -SEX)%>%
+  mutate(SEX=recode(SEX, "1"="MALES", "2"="FEMALES"))
+
+#plot
+p<-ggplot(dat2, aes(AGE2, value, group=SEX))+
+  geom_point(aes(shape=SEX),color="black", size =4)+
+  geom_line()+
+  facet_wrap(~key, ncol=2)+
+  ylab("PLEASANTNESS RATING")+
+  scale_x_discrete(name ="AGE IN DECADES",  labels = c("TEENS", "20'S","30'S","40'S","50'S", "60'S","70'S","80'S","90'S"))+
+  theme_classic()+
+  scale_shape_manual(name="",values=c(1, 15), breaks=c("MALES", "FEMALES"), labels = c("MALES", "FEMALES"))+
+  theme(legend.title = element_blank(), legend.position = c(0.1, 0.2))+
+  theme(strip.background=element_blank())
+p
+##save plot
+postscript(colormodel="cmyk")
+#ggsave(filename ='Figure_12_NGS.tif',p,  width = 20, height =15, units ="cm",dpi = 1200, device='tiff', limitsize = TRUE, compression = "lzw")
+dev.off()
+```
+
+# Fig 13. The coefficient of vanation for perceived pleasantness ratings plotted as a function of age for each of the odorant samples.
+```{r Fig13, echo=FALSE}
+dat<-fread("C:/Users/Ke.Evan/Dropbox/REDCap/4.Others/NGS - map examples/NGS_use_me.csv", select=c("AGE","AND_QUAL","AA_QUAL", "GAL_QUAL", "EUG_QUAL", "MERCAP_QUAL","ROSE_QUAL"))%>%
+  filter(AGE >=10)
+
+dat[dat==0] <- NA #remove 0 value
+
+dat$AGE2<-cut(as.numeric(dat$AGE), c(10,20,30,40,50,60,70,80,90,100)) #age format
+
+
+#computation
+dat2<-dat%>%
+  gather(key, QUAL, -AGE, -AGE2)%>%
+  filter(QUAL!=0)%>%
+  group_by(key, AGE2)%>%
+  summarise(COEF=100*(sd(QUAL,na.rm = TRUE)/mean(QUAL, na.rm = TRUE)))
+            
+dat2$key<-ifelse(dat2$key=="AND_QUAL", "Androstenone",
+               ifelse(dat2$key=="AA_QUAL", "Amyl acetate",
+                      ifelse(dat2$key=="GAL_QUAL","Galaxolide",
+                             ifelse(dat2$key=="EUG_QUAL", "Eugenol",
+                                    ifelse(dat2$key=="MERCAP_QUAL", "Mercaptans", "Rose")))))
+
+ 
+#plot
+p<-ggplot(dat2, aes(AGE2, COEF, group= key))+
+  geom_point(aes(shape= key),color="black", size =4)+
+  geom_line(aes(linetype= key))+
+  scale_x_discrete(name ="AGE IN DECADES",  labels = c("TEENS", "20'S","30'S","40'S","50'S", "60'S","70'S","80'S","90'S"))+
+  scale_fill_manual(breaks=c("Androstenone",  "Amyl acetate","Galaxolide","Eugenol", "Mercaptans", "Rose"), labels = c("Androstenone",  "Amyl acetate","Galaxolide","Eugenol", "Mercaptans", "Rose"), name="")+
+  theme_classic()+
+  theme(legend.title = element_blank(), legend.position = "top")+
+  scale_y_continuous(name="COEFICIENT OF VARIANCE",breaks=c(0,10,20,30,40,50,60,70,80), labels=c("0","10","20","30","40","50","60","70","80"), limits=c(0,80))+
+  guides(shape = guide_legend(nrow = 2))
+
+p
+
+##save plot
+postscript(colormodel="cmyk")
+#ggsave(filename ='Figure_13_NGS.tif',p,  width = 15, height =12, units ="cm",dpi = 1200, device='tiff', limitsize = TRUE, compression = "lzw")
+dev.off()
+
+```
+
+
+# Fig 14. Pearson product-moment correlations between perceived intensity and perceived pleasantness for each of the odorant samples. Correlations are presented as a function of age
+```{r Fig14, echo=FALSE}
+dat<-fread("C:/Users/Ke.Evan/Dropbox/REDCap/4.Others/NGS - map examples/NGS_use_me.csv", select=c("AGE","AND_INT", "AA_INT","GAL_INT", "EUG_INT","MER_INT","ROSE_INT", "AND_QUAL","AA_QUAL", "GAL_QUAL", "EUG_QUAL", "MERCAP_QUAL","ROSE_QUAL"))%>%
+  filter(AGE >=10)
+
+
+dat$AGE2<-cut(as.numeric(dat$AGE), c(10,20,30,40,50,60,70,80,90,100)) #age format
+
+age<-c("(10,20]","(20,30]","(30,40]","(40,50]","(50,60]","(60,70]","(70,80]","(80,90]","(90,100]")
+name<-c("AND","AA","GAL","EUG","MER","ROSE")
+
+#computation
+dat2<-data.frame(AGE2=NA, Key=NA, cor=NA)
+dat3<-data.frame()
+for (ag in age){
+  for (nam in name){
+        dat2["AGE2"]<-ag
+        dat2$Key<-nam
+        df<-filter(dat,AGE2==ag)%>%
+          select(starts_with(nam))
+        df<-df[!(apply(df, 1, function(y) any(y == 0))),]  #rove all "0" values
+        dat2$cor<-cor(df[,1],df[,2], method="pearson")[1]
+        dat3<-bind_rows(dat3, dat2)
+  }
+}
+
+dat3$Key<-ifelse(dat3$Key=="AND", "Androstenone",
+               ifelse(dat3$Key=="AA", "Amyl acetate",
+                      ifelse(dat3$Key=="GAL","Galaxolide",
+                             ifelse(dat3$Key=="EUG", "Eugenol",
+                                    ifelse(dat3$Key=="MER", "Mercaptans", "Rose")))))
+
+
+#plot
+p<-ggplot(dat3, aes(AGE2, cor, group= Key))+
+  geom_point(aes(shape= Key),color="black", size =4)+
+  geom_line(aes(linetype= Key))+
+  scale_x_discrete(name ="AGE IN DECADES",  labels = c("TEENS", "20'S","30'S","40'S","50'S", "60'S","70'S","80'S","90'S"))+
+  scale_fill_manual(breaks=c("Androstenone",  "Amyl acetate","Galaxolide","Eugenol", "Mercaptans", "Rose"), labels = c("Androstenone",  "Amyl acetate","Galaxolide","Eugenol", "Mercaptans", "Rose"), name="")+
+  theme_classic()+
+  theme(legend.title = element_blank(), legend.position = "top", strip.background=element_blank())+
+  scale_y_continuous(name="PEARSON PRODUCT-MONENT\nCORRELATION COEFFICIENT" ,breaks=c(-0.2,0,0.2,0.4,0.6, 0.8), labels=c("-0.2","0.0","0.2","0.4","0.6", "0.8"), limits=c(-0.4,0.9))+
+  guides(shape = guide_legend(nrow = 2))
+
+p
+##save plot
+postscript(colormodel="cmyk")
+#ggsave(filename ='Figure_14_NGS.tif',p,  width = 15, height =12, units ="cm",dpi = 1200, device='tiff', limitsize = TRUE, compression = "lzw")
+dev.off()
+
+```
+
+# Fig 15. The percentage of respondents answering "yes" to the following question: "Would you eat something that smelled like this?" Only those subjects who reporting smelling an odor are included. Although both odorants are food related (eugenol:cloves; isoarnyl acetate: bananas or pears), neither age nor sex differences in response were equivalent.
+```{r Fig15, echo=FALSE}
+dat<-fread("C:/Users/Ke.Evan/Dropbox/REDCap/4.Others/NGS - map examples/NGS_use_me.csv", select=c("AGE","SEX", "AA_EAT","EUG_EAT"))%>%
+  filter(AGE >=10 &SEX!="0")
+
+
+dat$AGE2<-cut(as.numeric(dat$AGE), c(10,20,30,40,50,60,70,80,90,100)) #age format
+
+#computation
+d1<-dat%>%
+    dplyr::select(SEX, AGE2, AA_EAT)%>%
+    drop_na()%>%
+    group_by(AGE2, SEX, AA_EAT)%>%
+    summarise(value=n())%>%
+    filter(AA_EAT !="0" & AA_EAT !="3")%>%
+    group_by(AGE2, SEX)%>%
+    mutate(value=value/sum(value))
+    colnames(d1)[3]<-"key"
+    d1$Key2<-"AA_EAT"
+
+d2<-dat%>%
+    dplyr::select(SEX, AGE2, EUG_EAT)%>%
+    drop_na()%>%
+    group_by(AGE2, SEX, EUG_EAT)%>%
+    summarise(value=n())%>%
+    filter(EUG_EAT !="0" & EUG_EAT !="3")%>%
+    group_by(AGE2, SEX)%>%
+    mutate(value=value/sum(value))
+colnames(d2)[3]<-"key"
+d2$Key2<-"EUG_EAT"
+
+dat2<-bind_rows(d1, d2)%>%
+  filter(key=="1")
+
+         
+dat2$Key2<-ifelse(dat2$Key2=="AA_EAT", "Amyl acetate","Eugenol")
+               
+
+#plot
+dat2$SEX<-as.character(dat2$SEX)
+
+p<-ggplot(dat2, aes(AGE2, value*100, group=SEX))+
+  geom_point(aes(shape=SEX),color="black", size =4)+
+  geom_line(linetype=1)+
+  facet_wrap(~Key2, ncol=1)+
+  ylab("PERCENT OF SAMPLE DETECTING AN ODOR")+
+  scale_x_discrete(name ="AGE IN DECADES",  labels = c("TEENS", "20'S","30'S","40'S","50'S", "60'S","70'S","80'S","90'S"))+
+  theme_classic()+ scale_shape_manual(name="",values=c(1, 15), breaks=c("1", "2"), labels = c("MALES", "FEMALES"))+
+  theme(legend.title = element_blank(), legend.position = c(0.1, 0.5))+
+  theme(strip.background=element_blank())
+
+p
+
+##save plot
+postscript(colormodel="cmyk")
+#ggsave(filename ='Figure_15_NGS.tif',p,  width = 15, height =18, units ="cm",dpi = 1200, device='tiff', limitsize = TRUE, compression = "lzw")
+dev.off()
+
+```
+# Fig 16. The percentage of respondents with loss of smell attributed to flu/colds/sinus infection or to allergies. The proportion declined with age.
+#FLU_COLD	Have you ever experienced a loss of smell due to the following?flu, common cold, sinus infection	encoded value	0=No	1=Yes,ALLERGIES	Have you ever experienced a loss of smell due to the following?allergy attack	encoded value	0=No 1=Yes
+
+```{r Fig16, echo=FALSE}
+dat<-fread("C:/Users/Ke.Evan/Dropbox/REDCap/4.Others/NGS - map examples/NGS_use_me.csv", select=c("SEX","FLU_COLD", "AGE","ALLERGIES"))%>%
+  filter(AGE >=10 & SEX!=0)
+
+dat$AGE2<-cut(as.numeric(dat$AGE), c(10,20,30,40,50,60,70,80,90,100)) #age format
+
+
+#computation
+d1<-dat%>%
+  dplyr::select(SEX, AGE2, FLU_COLD)%>%
+  drop_na()%>%
+  group_by(AGE2, SEX, FLU_COLD)%>%
+  summarise(value=n())%>%
+  group_by(AGE2, SEX)%>%
+  mutate(value=value/sum(value))
+colnames(d1)[3]<-"key"
+d1$Key2<-"FLU_COLD"
+           
+d2<-dat%>%
+    dplyr::select(SEX, AGE2, ALLERGIES)%>%
+    drop_na()%>%
+    group_by(AGE2, SEX, ALLERGIES)%>%
+    summarise(value=n())%>%
+    group_by(AGE2, SEX)%>%
+    mutate(value=value/sum(value))
+colnames(d2)[3]<-"key"
+d2$Key2<-"ALLERGIES"
+
+dat2<-bind_rows(d1, d2)%>%
+  filter(key=="1")
+
+         
+dat2$newKey<-ifelse(dat2$Key2=="FLU_COLD"&dat2$SEX=="1", "FLU COLD, MALES",
+                    ifelse(dat2$Key2=="FLU_COLD"&dat2$SEX=="2", "FLU COLD, FEMALES",
+                       ifelse(dat2$Key2=="ALLERGIES"&dat2$SEX=="1", "ALLERGIES, MALES","ALLERGIES, FEMALES")))
+               
+
+#plot
+
+p<-ggplot(dat2, aes(AGE2, value*100, group=newKey))+
+  geom_point(aes(shape=newKey),color="black", size =4)+
+  geom_line(aes(linetype=newKey))+
+  scale_x_discrete(name ="AGE IN DECADES",  labels = c("TEENS", "20'S","30'S","40'S","50'S", "60'S","70'S","80'S","90'S"))+
+  theme_classic()+ 
+  theme(legend.title = element_blank(), legend.position = "top")+
+  scale_y_continuous(name="PERCENT REPORTING SMELL LOSS", breaks=c(20,40,60,80,100), labels=c(20,40,60,80,100), limits=c(0,100))+
+  guides(shape = guide_legend(nrow = 2))
+
+p
+
+
+##save plot
+postscript(colormodel="cmyk")
+#ggsave(filename ='Figure_16_NGS.tif',p,  width = 15, height =12, units ="cm",dpi = 1200, device='tiff', limitsize = TRUE, compression = "lzw")
+dev.off()
+
+```
+# FIG 17. 
+#The percentage of respondents who had lost and not regained their sense of smell, irrespective of cause. The proportion significantly increased with advancing age.REGAIN_SMELL	If you have lost your sense of smell, have you since regained it?	encoded value	0=No response	1=Yes	2=No
+```{r Fig17, echo=FALSE}
+dat<-fread("C:/Users/Ke.Evan/Dropbox/REDCap/4.Others/NGS - map examples/NGS_use_me.csv", select=c("AGE","REGAIN_SMELL"))%>%
+  filter(AGE >=10)
+
+dat$AGE2<-cut(as.numeric(dat$AGE), c(10,20,30,40,50,60,70,80,90,100)) #age format
+
+
+#computation
+dat2<-dat%>%
+  drop_na()%>%
+  group_by(AGE2, REGAIN_SMELL)%>%
+  summarise(value=n())%>%
+  filter(REGAIN_SMELL !=0)%>%
+  group_by(AGE2)%>%
+  mutate(value=value/sum(value))%>%
+  filter(REGAIN_SMELL==2)
+
+
+#plot
+
+p<-ggplot(dat2, aes(AGE2, value*100, group = 1))+
+  geom_point(size=4)+
+  geom_line()+ 
+  scale_x_discrete(name ="AGE IN DECADES",  labels = c("TEENS", "20'S","30'S","40'S","50'S", "60'S","70'S","80'S","90'S"))+
+  theme_classic()+ 
+  scale_y_continuous(name="PERCENT OF RESPONDENTS\nNOT REGAINING SMELL", breaks=c(3,6,9,12), labels=c(3,6,9,12), limits=c(0,14))+
+  annotate("text", x=2, y=7, label="(N=892746)", size=4)
+p
+
+##save plot
+postscript(colormodel="cmyk")
+#ggsave(filename ='Figure_17_NGS.tif',p,  width = 15, height =12, units ="cm",dpi = 1200, device='tiff', limitsize = TRUE, compression = "lzw")
+dev.off()
+```
+
+# world mapp
+```{r Figworldmapp, echo=FALSE}
+dat<-fread("C:/Users/Ke.Evan/Dropbox/REDCap/4.Others/NGS - map examples/NGS_use_me.csv", select=c("SEX", "SMOKE",  "AGE", "COUNTRY", "EUG_QUAL"))%>%
+  filter(SEX !=0 & AGE>=10 &EUG_QUAL !=0 &SMOKE !=0)
+
+#computation
+summary(lm(EUG_QUAL~SEX+SMOKE+AGE+COUNTRY, data=dat))
+
+#Multiple R-squared:  0.01394,	Adjusted R-squared:  0.01394 
+#F-statistic:  5024 on 4 and 1421057 DF,  p-value: < 2.2e-16
+
+contrycode<-read.csv("C:/Users/Ke.Evan/Dropbox/REDCap/4.Others/NGS - map examples/CONTRYCODE.csv", header=T)
+##MEN
+dat_M <-subset(dat, SEX=="1")%>%
+  filter(COUNTRY !="0")
+
+a<-dat_M%>%
+  group_by(COUNTRY)%>%
+  summarise(mean=mean(EUG_QUAL, na.rm=TRUE))
+
+males<-merge(a, contrycode, by="COUNTRY")
+colnames(males)<-c("COUNTRY", "Pleasantness\nEugenol_Men",  "name_long")
+##WOMEN
+dat_F <-subset(dat, SEX=="2")%>%
+  filter(COUNTRY !="0")
+b<-dat_F%>%
+  group_by(COUNTRY)%>%
+  summarise(mean=mean(EUG_QUAL, na.rm=TRUE))
+females<-merge(b, contrycode, by="COUNTRY")
+colnames(females)<-c("COUNTRY", "Pleasantness\nEugenol_Women",  "name_long")
+
+Eug<-merge(males[,2:3], females[,2:3], by="name_long")
+
+world_Eug = merge(world, Eug, by = "name_long", all.x=TRUE)
+facets = c("Pleasantness\nEugenol_Men", "Pleasantness\nEugenol_Women")
+
+p<-tm_shape(world_Eug) + tm_polygons(facets) + 
+  tm_facets(nrow = 2, sync = TRUE)+tm_layout(
+          legend.title.size = 1,
+          legend.text.size = 0.8,
+          legend.position = c(0.01,0.2),
+          legend.bg.color = "white",
+          legend.bg.alpha = 1)
+
+p
+
+##check country not matching
+CONTRYNAMes<-as.data.frame(table(world$name_long))
+colnames(CONTRYNAMes)<-c("name_long", "Fre")
+y<-merge(contrycode,CONTRYNAMes,by = "name_long")
+countrynotmatched<-contrycode[!(contrycode$name_long %in% y$name_long),]
+```
